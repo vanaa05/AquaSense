@@ -1,0 +1,36 @@
+# AquaSense — Apache Config
+# Proteksi file sensitif dari akses langsung
+
+# Cegah directory listing
+Options -Indexes
+
+# Proteksi file konfigurasi database dan aplikasi dari akses langsung
+<Files "database.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "app.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Proteksi folder includes/ — file ini hanya boleh di-require dari PHP, bukan diakses langsung
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blokir akses langsung ke folder includes/
+    RewriteRule ^includes/ - [F,L]
+
+    # Blokir akses langsung ke folder tools/
+    # Untuk generate hash, akses hanya dari localhost saja
+    RewriteCond %{REMOTE_ADDR} !^127\.0\.0\.1$
+    RewriteCond %{REMOTE_ADDR} !^::1$
+    RewriteRule ^tools/ - [F,L]
+</IfModule>
+
+# Fallback jika mod_rewrite tidak aktif: blokir tools/ via Directory
+<IfModule !mod_rewrite.c>
+    # Jika mod_rewrite tidak aktif, nonaktifkan folder tools dengan menambahkan
+    # .htaccess terpisah di dalam folder tools/ dengan isi "Deny from all"
+</IfModule>
