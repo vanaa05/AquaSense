@@ -439,3 +439,6 @@ Content-Type: application/json
 ```
 
 ESP32 adalah pengendali hardware utama. Server PHP hanya menyimpan data dan antrean perintah. ESP32 wajib memvalidasi ulang aturan pakan sebelum menggerakkan servo.
+
+# AquaSense
+Project IOT Aquarium Feeder &amp; Monitoring 
