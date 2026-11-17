@@ -44,17 +44,27 @@ function getStatusPakan(float $jarak): array {
 
 function getMonitoringTerakhir(): ?array {
     $pdo = getDB();
-    $stmt = $pdo->query('SELECT * FROM monitoring ORDER BY created_at DESC LIMIT 1');
+    $stmt = $pdo->query(
+        'SELECT *
+         FROM monitoring
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1'
+    );
     return $stmt->fetch() ?: null;
 }
 
 function getHistoriMonitoring(int $jam = 24, int $limit = 100): array {
     $pdo = getDB();
     $stmt = $pdo->prepare(
-        'SELECT * FROM monitoring 
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
-         ORDER BY created_at ASC
-         LIMIT ?'
+        'SELECT *
+         FROM (
+             SELECT *
+             FROM monitoring
+             WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+             ORDER BY created_at DESC, id DESC
+             LIMIT ?
+         ) AS histori
+         ORDER BY created_at ASC, id ASC'
     );
     $stmt->execute([$jam, $limit]);
     return $stmt->fetchAll();
