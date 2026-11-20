@@ -1,444 +1,458 @@
-# AquaSense — Dokumentasi Sistem
-## Smart Aquarium Feeder & Monitoring
+
+# AquaSense
+## Smart Aquarium Feeder & Monitoring System
+
+AquaSense adalah sistem IoT untuk memantau kondisi aquarium dan membantu pengelolaan pemberian pakan ikan. Sistem menggunakan ESP32 sebagai pengendali perangkat, sensor untuk membaca kondisi aquarium, servo motor untuk mekanisme pemberian pakan, serta aplikasi web berbasis PHP dan MySQL untuk menampilkan data dan mengelola pengaturan.
+
+Dokumentasi ini mencakup source code aplikasi web dan firmware ESP32.
 
 ---
 
-## 1. STRUKTUR FOLDER FINAL
+## 1. Fitur Sistem
 
-```
-aquasense/
-├── index.php                    ← Redirect ke login atau beranda
-├── login.php                    ← Halaman login admin
-├── logout.php                   ← Handler logout
-│
-├── config/
-│   ├── database.php             ← Koneksi PDO MySQL
-│   └── app.php                  ← Konstanta & konfigurasi aplikasi
-│
-├── includes/
-│   ├── header.php               ← Header HTML global (sidebar + header)
-│   ├── footer.php               ← Footer HTML global (script)
-│   ├── auth.php                 ← Autentikasi session & CSRF
-│   └── functions.php            ← Fungsi utilitas global
-│
-├── pages/
-│   ├── beranda.php              ← Dashboard utama
-│   ├── sensor.php               ← Monitoring sensor
-│   └── jadwal.php               ← Manajemen jadwal pakan
-│
+### Monitoring Aquarium
+- Membaca suhu air menggunakan sensor DS18B20.
+- Membaca tingkat kekeruhan air menggunakan turbidity sensor.
+- Memantau ketersediaan pakan menggunakan sensor ultrasonik HC-SR04.
+- Mengirim data sensor dari ESP32 ke server.
+- Menampilkan data sensor terkini dan histori monitoring pada dashboard.
+- Menampilkan status koneksi perangkat melalui mekanisme heartbeat.
+
+### Pengelolaan Pemberian Pakan
+- Pemberian pakan otomatis berdasarkan jadwal yang tersimpan di database.
+- Pengaturan aktif/nonaktif pakan otomatis melalui dashboard.
+- Pemberian pakan manual melalui fitur **Feed Now** pada dashboard.
+- Pemberian pakan manual melalui push button pada perangkat.
+- Pengaturan sudut servo untuk mekanisme pemberian pakan.
+- Pembatasan pakan manual dan jeda minimum pemberian pakan.
+- Pencatatan riwayat pemberian pakan.
+
+### Peringatan dan Antarmuka
+- LED sebagai indikator kondisi aquarium.
+- Buzzer sebagai indikator peringatan.
+- LCD I2C untuk menampilkan informasi perangkat.
+- Notifikasi kondisi sensor pada dashboard.
+- Pengaturan buzzer peringatan melalui dashboard.
+
+---
+
+## 2. Teknologi yang Digunakan
+
+| Bagian | Teknologi |
+|---|---|
+| Mikrokontroler | ESP32 |
+| Firmware | Arduino C++ |
+| Backend Web | PHP |
+| Database | MySQL |
+| Frontend | HTML, CSS, JavaScript |
+| Web Server Lokal | Apache (XAMPP) |
+| Komunikasi Perangkat | Wi-Fi dan HTTP API |
+| Format Pertukaran Data | JSON |
+
+### Library Firmware
+
+Firmware menggunakan library berikut:
+- `Wire`
+- `LiquidCrystal_I2C`
+- `OneWire`
+- `DallasTemperature`
+- `ESP32Servo`
+- `WiFi`
+- `HTTPClient`
+- `ArduinoJson`
+- `time`
+
+Pastikan library eksternal yang diperlukan sudah terpasang pada Arduino IDE.
+
+---
+
+## 3. Perangkat Keras dan Pin ESP32
+
+Pemetaan pin berdasarkan firmware `AquaSense_ESP32_Revisi.ino`:
+
+| Komponen | Pin ESP32 |
+|---|---:|
+| DS18B20 | GPIO 4 |
+| Turbidity Sensor (analog) | GPIO 34 |
+| HC-SR04 Trig | GPIO 5 |
+| HC-SR04 Echo | GPIO 18 |
+| Servo Motor | GPIO 13 |
+| Buzzer | GPIO 14 |
+| LED | GPIO 23 |
+| Push Button | GPIO 19 |
+
+Komponen tampilan menggunakan LCD I2C dengan alamat `0x27`.
+
+**Catatan perakitan:**
+- Pastikan seluruh komponen memiliki ground (GND) yang terhubung bersama.
+- Perhatikan kebutuhan tegangan setiap modul.
+- Pin Echo HC-SR04 umumnya menghasilkan sinyal 5 V; sesuaikan level tegangan agar aman untuk input ESP32.
+- Pastikan catu daya servo memadai dan ground catu daya servo terhubung dengan ground ESP32.
+- Konfirmasi kembali susunan kabel dengan rangkaian fisik yang digunakan.
+
+---
+
+## 4. Struktur Folder Project
+
+Berikut struktur folder repository AquaSense:
+
+```text
+AquaSense/
 ├── api/
-│   ├── esp32/
-│   │   ├── sensor.php           ← POST: terima data sensor
-│   │   ├── jadwal.php           ← GET: jadwal aktif
-│   │   ├── pengaturan.php       ← GET: pengaturan sistem
-│   │   ├── perintah.php         ← GET: antrean Feed Now
-│   │   ├── status_pakan.php     ← POST: laporan status pakan
-│   │   └── heartbeat.php        ← POST: heartbeat perangkat
-│   │
-│   └── dashboard/
-│       ├── sensor.php           ← GET: data sensor & histori
-│       ├── jadwal.php           ← CRUD jadwal
-│       ├── pengaturan.php       ← GET/POST pengaturan
-│       ├── feed_now.php         ← GET status / POST perintah
-│       ├── notifikasi.php       ← GET/POST notifikasi
-│       └── riwayat.php          ← GET riwayat pakan
-│
+│   ├── dashboard/
+│   │   ├── feed_now.php
+│   │   ├── jadwal.php
+│   │   ├── notifikasi.php
+│   │   ├── pengaturan.php
+│   │   ├── riwayat.php
+│   │   └── sensor.php
+│   └── esp32/
+│       ├── heartbeat.php
+│       ├── jadwal.php
+│       ├── pengaturan.php
+│       ├── perintah.php
+│       ├── sensor.php
+│       └── status_pakan.php
 ├── assets/
-│   ├── css/style.css            ← Design system global
-│   ├── js/app.js                ← JavaScript polling & interaksi
-│   └── img/ icons/              ← Aset gambar (opsional)
-│
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── app.js
+├── config/
+│   ├── app.php
+│   └── database.php
 ├── database/
-│   ├── aquasense_database.sql   ← Database utama (schema + seed)
-│   └── migration.sql            ← Migrasi tambahan
-│
-└── tools/
-    └── generate_hash.php        ← Helper generate password hash
+│   ├── aquasense_database.sql
+│   └── migration.sql
+├── firmware/
+│   └── AquaSense_ESP32_Revisi.ino
+├── includes/
+│   ├── auth.php
+│   ├── footer.php
+│   ├── functions.php
+│   └── header.php
+├── pages/
+│   ├── beranda.php
+│   ├── jadwal.php
+│   └── sensor.php
+├── tools/
+│   └── generate_hash.php
+├── .gitignore
+├── .htaccess
+├── index.php
+├── login.php
+├── logout.php
+└── README.md
 ```
+
+Repository terdiri dari source code aplikasi web, firmware ESP32, serta file database yang diperlukan untuk menjalankan sistem AquaSense.
 
 ---
 
-## 2. PANDUAN INSTALASI XAMPP
+## 5. Persyaratan Menjalankan Aplikasi Web
 
-### Langkah 1 — Salin Project
+- Windows atau sistem operasi lain yang dapat menjalankan web server.
+- XAMPP atau lingkungan server setara.
+- Apache.
+- MySQL atau MariaDB.
+- PHP yang mendukung sintaks PHP 7.4 atau lebih baru.
+- Browser web.
 
-```
-Salin folder aquasense/ ke:
-C:\xampp\htdocs\AquaSense\
-```
+---
 
-### Langkah 2 — Jalankan XAMPP
+## 6. Instalasi Aplikasi Web dengan XAMPP
 
-1. Buka **XAMPP Control Panel**
-2. Klik **Start** pada Apache
-3. Klik **Start** pada MySQL
+### Langkah 1 — Salin Folder Project
 
-### Langkah 3 — Import Database
+Salin folder `AquaSense` ke direktori:
 
-1. Buka browser → `http://localhost/phpmyadmin`
-2. Klik **New** → buat database baru bernama `iot`
-3. Pilih database `iot` → klik tab **Import**
-4. Pilih file `database/aquasense_database.sql`
-5. Klik **Impor**
-
-### Langkah 4 — Set Password Admin
-
-Setelah import, jalankan:
-```
-http://localhost/AquaSense/tools/generate_hash.php
-```
-- Masukkan password yang diinginkan
-- Copy hash yang dihasilkan
-- Jalankan query:
-```sql
-USE iot;
-UPDATE admin_users SET password_hash = '<hash_yang_dicopy>' WHERE username = 'admin';
+```text
+C:\xampp\htdocs\AquaSense
 ```
 
-### Langkah 5 — Konfigurasi
+### Langkah 2 — Jalankan Layanan XAMPP
 
-Edit `config/app.php`:
-```php
-define('APP_URL', 'http://localhost/AquaSense');   // URL lokal
-```
+Buka XAMPP Control Panel, kemudian jalankan:
+1. Apache
+2. MySQL
 
-Edit `config/database.php`:
+### Langkah 3 — Buat dan Import Database
+
+1. Buka `http://localhost/phpmyadmin`.
+2. Pilih menu **Import** atau buat database bernama `iot`.
+3. Import file `database/aquasense_database.sql`.
+4. Pastikan proses import selesai tanpa error.
+
+File SQL utama membuat database `iot` dan tabel-tabel yang dibutuhkan aplikasi.
+
+File `database/migration.sql` disediakan untuk penyesuaian database yang sudah ada. Untuk instalasi baru, gunakan `aquasense_database.sql` terlebih dahulu. Jangan menjalankan migration secara otomatis tanpa memeriksa kondisi database.
+
+### Langkah 4 — Periksa Konfigurasi Database
+
+Buka `config/database.php` dan sesuaikan konfigurasi dengan MySQL lokal:
+
 ```php
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');          // Password MySQL XAMPP (kosong default)
+define('DB_PORT', '3306');
 define('DB_NAME', 'iot');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_CHARSET', 'utf8mb4');
 ```
 
-### Langkah 6 — Akses Website
+Nilai di atas merupakan konfigurasi bawaan pada source code. Ubah `DB_USER` dan `DB_PASS` jika konfigurasi MySQL berbeda.
 
+### Langkah 5 — Periksa URL Aplikasi
+
+Buka `config/app.php` dan sesuaikan `APP_URL` dengan alamat aplikasi:
+
+```php
+define('APP_URL', 'http://localhost/AquaSense');
 ```
+
+### Langkah 6 — Akses Dashboard
+
+Buka browser:
+
+```text
 http://localhost/AquaSense
 ```
 
-Login dengan: **admin** / password yang sudah di-set
+`index.php` mengarahkan pengguna ke halaman dashboard Beranda.
+
+**Catatan akses:** Pada source code yang diperiksa, `login.php` mengarahkan pengguna ke dashboard dan `requireLogin()` belum menerapkan pembatasan akses. Jangan menganggap aplikasi sudah memiliki autentikasi admin aktif. Batasi akses melalui jaringan tepercaya dan aktifkan autentikasi sebelum aplikasi dipublikasikan ke internet.
 
 ---
 
-## 3. PANDUAN KONFIGURASI API ESP32
+## 7. Konfigurasi Firmware ESP32
 
-### API Token
+Firmware ESP32 tersedia pada folder:
 
-Token default: `AQUASENSE_ESP32_TOKEN_2024`
-
-Ganti di `config/app.php`:
-```php
-define('ESP32_API_TOKEN', 'TOKEN_BARU_ANDA');
+```text
+firmware/AquaSense_ESP32_Revisi.ino
 ```
 
-Dan update di database:
-```sql
-UPDATE pengaturan SET nilai = 'TOKEN_BARU_ANDA' WHERE kunci = 'api_token_esp32';
+Buka file tersebut menggunakan Arduino IDE.
+
+### Langkah 1 — Atur Koneksi Wi-Fi
+
+Sesuaikan variabel SSID dan password Wi-Fi pada firmware dengan jaringan yang akan digunakan.
+
+Jangan mengunggah kredensial Wi-Fi asli ke repository publik.
+
+### Langkah 2 — Atur Alamat Server
+
+Firmware menggunakan alamat server lokal melalui variabel `SERVER_URL`.
+
+Contoh format:
+
+```cpp
+const char* SERVER_URL = "http://ALAMAT_IPV4_LAPTOP/AquaSense";
 ```
 
-### URL API untuk ESP32 (lokal)
+Ganti `ALAMAT_IPV4_LAPTOP` dengan alamat IPv4 komputer yang menjalankan XAMPP. ESP32 dan laptop harus dapat saling berkomunikasi melalui jaringan yang sama.
 
-| Endpoint | Method | Keterangan |
+Pastikan alamat server di firmware sesuai dengan konfigurasi aplikasi dan Apache dapat diakses dari perangkat ESP32.
+
+### Langkah 3 — Samakan API Token
+
+Firmware dan server menggunakan token API yang harus sama:
+- Firmware: variabel `API_TOKEN`.
+- Server: konstanta `ESP32_API_TOKEN` pada `config/app.php`.
+
+Gunakan token milik sendiri dan jangan membagikan token produksi di repository publik. Jika token diganti, perbarui kedua sisi.
+
+### Langkah 4 — Pilih Board dan Upload
+
+1. Hubungkan ESP32 ke komputer.
+2. Pilih board ESP32 yang sesuai di Arduino IDE.
+3. Pilih port perangkat.
+4. Pastikan library firmware sudah tersedia.
+5. Compile dan upload firmware.
+6. Buka Serial Monitor untuk memeriksa koneksi Wi-Fi, pembacaan sensor, dan komunikasi API.
+
+---
+
+## 8. Ambang Kondisi Sensor
+
+Berdasarkan implementasi firmware:
+
+| Parameter | Kondisi | Batas |
 |---|---|---|
-| `http://localhost/AquaSense/api/esp32/sensor.php` | POST | Kirim data sensor |
-| `http://localhost/AquaSense/api/esp32/jadwal.php` | GET | Ambil jadwal aktif |
-| `http://localhost/AquaSense/api/esp32/pengaturan.php` | GET | Ambil pengaturan |
-| `http://localhost/AquaSense/api/esp32/perintah.php` | GET | Cek Feed Now pending |
-| `http://localhost/AquaSense/api/esp32/status_pakan.php` | POST | Lapor status pakan |
-| `http://localhost/AquaSense/api/esp32/heartbeat.php` | POST | Heartbeat koneksi |
+| Suhu Air | Rendah / di luar batas | Di bawah 24 °C |
+| Suhu Air | Normal | 24–30 °C |
+| Suhu Air | Tinggi / di luar batas | Di atas 30 °C |
+| Turbidity ADC | Keruh | ≤ 2300 |
+| Turbidity ADC | Agak keruh | 2301–3150 |
+| Turbidity ADC | Normal | Di atas 3150 |
+| Jarak Pakan | Pakan menipis | ≥ 10 cm |
 
-### Header yang wajib disertakan ESP32
+Nilai turbidity merupakan pembacaan ADC. Interpretasi kondisi perlu disesuaikan dengan karakteristik sensor dan hasil kalibrasi pada rangkaian yang digunakan.
 
-```
-X-API-Token: AQUASENSE_ESP32_TOKEN_2024
+---
+
+## 9. Aturan Pemberian Pakan
+
+Konfigurasi pada firmware dan aplikasi mencakup:
+- Durasi pembukaan servo: 1000 ms.
+- Jeda minimum pemberian pakan: 240 menit.
+- Batas pakan manual: 2 kali.
+- Pakan otomatis mengikuti jadwal aktif yang diterima dari server.
+- Feed Now dari dashboard diterima ESP32 melalui antrean perintah.
+- Push button dapat digunakan untuk memicu pemberian pakan manual.
+
+ESP32 memeriksa aturan pemberian pakan sebelum menjalankan mekanisme servo dan mengirimkan status pelaksanaan ke server.
+
+---
+
+## 10. Komunikasi API ESP32
+
+Semua endpoint ESP32 menggunakan header token:
+
+```http
+X-API-Token: TOKEN_MILIK_ANDA
 Content-Type: application/json
 ```
 
----
+Ganti `TOKEN_MILIK_ANDA` dengan token yang sama pada firmware dan konfigurasi server.
 
-## 4. DOKUMENTASI KOMUNIKASI ESP32 & PHP
+### Daftar Endpoint ESP32
 
-### A. Alur: Kirim Data Sensor
+| Endpoint | Method | Fungsi |
+|---|---|---|
+| `/api/esp32/sensor.php` | POST | Mengirim data sensor |
+| `/api/esp32/jadwal.php` | GET | Mengambil jadwal aktif |
+| `/api/esp32/pengaturan.php` | GET | Mengambil pengaturan sistem |
+| `/api/esp32/perintah.php` | GET | Memeriksa antrean Feed Now |
+| `/api/esp32/status_pakan.php` | POST | Mengirim status pemberian pakan |
+| `/api/esp32/heartbeat.php` | POST | Mengirim heartbeat perangkat |
 
+Contoh alamat endpoint lokal:
+
+```text
+http://ALAMAT_IPV4_LAPTOP/AquaSense/api/esp32/sensor.php
 ```
-ESP32 → POST /api/esp32/sensor.php
 
-Body JSON:
+### Format Data Sensor
+
+ESP32 mengirim data JSON dengan field berikut:
+
+```json
 {
-    "suhu": 26.5,
-    "turbidity_adc": 3200,
-    "jarak_pakan": 7.5,
-    "suhu_valid": 1,
-    "turb_valid": 1,
-    "jarak_valid": 1
-}
-
-Response berhasil:
-{ "success": true, "message": "Data sensor diterima." }
-```
-
-### B. Alur: Ambil Jadwal
-
-```
-ESP32 → GET /api/esp32/jadwal.php
-
-Response:
-{
-    "success": true,
-    "pakan_otomatis": 1,
-    "jadwal": [
-        { "id": 1, "nama": "Pagi", "jam": "08:00:00", "sudut_servo": 90 }
-    ],
-    "server_time": "2024-01-01 08:00:00"
+  "suhu": 26.5,
+  "turbidity_adc": 3200,
+  "jarak_pakan": 7.5,
+  "suhu_valid": 1,
+  "turb_valid": 1,
+  "jarak_valid": 1
 }
 ```
 
-### C. Alur: Cek Perintah Feed Now
+### Interval Komunikasi Firmware
 
-```
-ESP32 → GET /api/esp32/perintah.php
+| Aktivitas | Interval |
+|---|---:|
+| Pembacaan sensor | 2 detik |
+| Pengiriman data sensor | 2 detik |
+| Pengambilan pengaturan dan pemeriksaan Feed Now | 10 detik |
+| Pengambilan jadwal | 30 detik |
+| Heartbeat | 30 detik |
 
-Response (ada perintah):
-{
-    "success": true,
-    "ada_perintah": true,
-    "perintah": {
-        "id": 5,
-        "sudut_servo": 90,
-        "sumber": "dashboard",
-        "created_at": "2024-01-01 10:00:00"
-    }
-}
-
-Response (tidak ada):
-{ "success": true, "ada_perintah": false }
-```
-
-### D. Alur: Lapor Status Pakan Manual
-
-```
-ESP32 → POST /api/esp32/status_pakan.php
-
-Body JSON (berhasil):
-{
-    "perintah_id": 5,
-    "sudut_servo": 90,
-    "status": "executed",
-    "alasan": ""
-}
-
-Body JSON (ditolak):
-{
-    "perintah_id": 5,
-    "sudut_servo": 90,
-    "status": "rejected",
-    "alasan": "Jeda minimum belum terpenuhi"
-}
-```
-
-### E. Alur: Lapor Status Pakan Jadwal
-
-```
-ESP32 → POST /api/esp32/status_pakan.php
-
-Body JSON:
-{
-    "jadwal_id": 1,
-    "sudut_servo": 90,
-    "status": "berhasil",
-    "alasan": ""
-}
-```
-
-### F. Alur: Push Button Manual
-
-```
-ESP32 → POST /api/esp32/status_pakan.php
-
-Body JSON:
-{
-    "sumber": "push_button",
-    "sudut_servo": 90,
-    "status": "berhasil",
-    "alasan": ""
-}
-```
-
-### Interval Polling yang Disarankan
-
-| Endpoint | Interval |
-|---|---|
-| Kirim sensor | Setiap 10 detik |
-| Ambil jadwal | Setiap 60 detik |
-| Ambil pengaturan | Setiap 60 detik |
-| Cek perintah Feed Now | Setiap 5 detik |
-| Heartbeat | Setiap 30 detik |
+Interval tersebut merupakan nilai konfigurasi firmware saat diperiksa dan dapat berubah jika firmware direvisi.
 
 ---
 
-## 5. PANDUAN TUNNELING (DEMO SEMENTARA)
+## 11. API Dashboard
 
-Jika server masih XAMPP dan ingin diakses ESP32 dari internet, gunakan:
+Endpoint dashboard digunakan oleh aplikasi web untuk mengambil dan mengelola data:
 
-### Opsi A — Ngrok
-
-```bash
-# Install ngrok (https://ngrok.com)
-ngrok http 80
-
-# Output:
-# Forwarding https://abc123.ngrok.io → localhost:80
-
-# URL API ESP32:
-# https://abc123.ngrok.io/AquaSense/api/esp32/sensor.php
-```
-
-### Opsi B — Cloudflare Tunnel
-
-```bash
-cloudflared tunnel --url http://localhost:80
-```
-
-Update URL di firmware ESP32:
-```cpp
-const char* serverUrl = "https://abc123.ngrok.io/AquaSense";
-```
+| Endpoint | Method | Fungsi |
+|---|---|---|
+| `/api/dashboard/sensor.php` | GET | Data sensor terkini dan histori |
+| `/api/dashboard/jadwal.php` | GET, POST, PUT, DELETE | Pengelolaan jadwal |
+| `/api/dashboard/pengaturan.php` | GET, POST | Pengaturan sistem |
+| `/api/dashboard/feed_now.php` | GET, POST | Status dan permintaan Feed Now |
+| `/api/dashboard/notifikasi.php` | GET, POST | Daftar dan status notifikasi |
+| `/api/dashboard/riwayat.php` | GET | Riwayat pemberian pakan |
 
 ---
 
-## 6. PANDUAN DEPLOYMENT SERVER ONLINE
+## 12. Struktur Database
 
-### Persyaratan Server
+Database yang digunakan bernama `iot`.
 
-- PHP 7.4+ (disarankan PHP 8.1+)
-- MySQL 5.7+ atau MariaDB 10.3+
-- Apache/Nginx dengan mod_rewrite
-- HTTPS (SSL/TLS)
+### Tabel
 
-### Langkah Deploy
+| Tabel | Fungsi |
+|---|---|
+| `monitoring` | Menyimpan data sensor |
+| `jadwal_pakan` | Menyimpan jadwal pemberian pakan |
+| `pengaturan` | Menyimpan konfigurasi sistem |
+| `perintah_pakan` | Menyimpan antrean perintah Feed Now |
+| `riwayat_pakan` | Menyimpan riwayat pemberian pakan |
+| `riwayat_peringatan` | Menyimpan riwayat peringatan |
+| `admin_users` | Menyimpan data akun admin |
 
-1. **Upload** semua file ke hosting (via FTP/SFTP)
-2. **Import** `database/aquasense_database.sql` ke MySQL server
-3. **Edit** `config/database.php` dengan kredensial database server
-4. **Edit** `config/app.php`:
-   ```php
-   define('APP_URL', 'https://yourdomain.com');
-   define('DEBUG_MODE', false);
-   ```
-5. **Set** token ESP32 yang kuat di `config/app.php`:
-   ```php
-   define('ESP32_API_TOKEN', 'TOKEN_AMAN_PANJANG_RANDOM');
-   ```
-6. **Update** URL di firmware ESP32:
-   ```cpp
-   const char* serverUrl = "https://yourdomain.com";
-   const char* apiToken  = "TOKEN_AMAN_PANJANG_RANDOM";
-   ```
+### View
 
-### Keamanan Produksi
-
-- Hapus folder `tools/` setelah setup
-- Set `DEBUG_MODE = false`
-- Gunakan kredensial database yang kuat
-- Aktifkan HTTPS
-- Ganti `ESP32_API_TOKEN` ke string random panjang
-- Ganti password admin default
+| View | Fungsi |
+|---|---|
+| `v_kuota_manual_hari_ini` | Mendukung perhitungan kuota pakan manual harian |
+| `v_pakan_terakhir` | Menyediakan informasi pemberian pakan terakhir |
 
 ---
 
-## 7. SKENARIO PENGUJIAN
+## 13. Troubleshooting
 
-### Uji 1 — Login
-
-| Langkah | Hasil yang Diharapkan |
+| Kendala | Hal yang Perlu Diperiksa |
 |---|---|
-| Buka `http://localhost/AquaSense` | Redirect ke login |
-| Masukkan username/password salah | Error "Username atau password salah" |
-| Masukkan admin/aquasense123 | Redirect ke Beranda |
-| Buka URL halaman langsung tanpa login | Redirect ke login |
-
-### Uji 2 — Sensor Dashboard
-
-| Langkah | Hasil yang Diharapkan |
-|---|---|
-| Kirim POST sensor.php dengan data valid | `{"success": true}` |
-| Buka halaman Sensor | Tampil nilai sensor terbaru |
-| Tunggu >120 detik tanpa kirim data | Status berubah ke "Offline" |
-| Kirim data dengan suhu=35 | Notifikasi "Suhu Tinggi" muncul |
-
-### Uji 3 — Feed Now
-
-| Langkah | Hasil yang Diharapkan |
-|---|---|
-| Klik "Beri Pakan Sekarang" (kuota tersedia) | Status berubah "Menunggu konfirmasi" |
-| POST status_pakan.php dengan status=executed | Status berubah "Berhasil" |
-| Klik Feed Now saat jeda < 240 menit | Tombol disabled + countdown |
-| Klik Feed Now setelah 2x pakan hari ini | Pesan "Kuota habis" |
-
-### Uji 4 — Jadwal CRUD
-
-| Langkah | Hasil yang Diharapkan |
-|---|---|
-| Tambah jadwal baru jam 08:00 | Jadwal tersimpan |
-| Tambah jadwal lain jam 08:00 | Error "Jadwal sudah ada" |
-| Edit jadwal → nonaktifkan | Status berubah "Nonaktif" |
-| GET jadwal.php dari ESP32 | Jadwal nonaktif tidak muncul |
-| Hapus jadwal | Jadwal hilang, riwayat tetap ada |
-
-### Uji 5 — Notifikasi
-
-| Langkah | Hasil yang Diharapkan |
-|---|---|
-| Kirim sensor dengan ADC=2000 | Badge notifikasi bertambah |
-| Klik notifikasi | Notifikasi ditandai dibaca |
-| Klik "Tandai semua dibaca" | Badge menghilang |
+| Dashboard tidak dapat dibuka | Status Apache dan alamat folder project |
+| Koneksi database gagal | Status MySQL dan konfigurasi `config/database.php` |
+| ESP32 tidak terhubung ke server | SSID, jaringan, alamat IPv4 laptop, firewall, dan Apache |
+| API mengembalikan token tidak valid | Kesamaan token pada firmware dan `config/app.php` |
+| Data sensor tidak tampil | Koneksi sensor, Serial Monitor, endpoint API, dan database |
+| Status perangkat offline | Pengiriman heartbeat dan koneksi Wi-Fi |
+| Servo tidak bergerak | Catu daya servo, kabel, pin GPIO 13, dan logika pemberian pakan |
+| Buzzer tidak berbunyi | Polaritas buzzer dan konfigurasi `BUZZER_AKTIF_HIGH` serta `BUZZER_PASIF` |
+| LCD tidak menampilkan informasi | Alamat I2C, koneksi SDA/SCL, dan catu daya LCD |
 
 ---
 
-## 8. TABEL DATABASE
+## 14. Catatan Keamanan dan Pengembangan
 
-| Tabel | Keterangan |
-|---|---|
-| `monitoring` | Data sensor dari ESP32 |
-| `jadwal_pakan` | Konfigurasi jadwal pemberian pakan |
-| `pengaturan` | Konfigurasi global sistem |
-| `perintah_pakan` | Antrean Feed Now dari dashboard |
-| `riwayat_pakan` | Log semua pemberian pakan |
-| `riwayat_peringatan` | Log peringatan kondisi sensor |
-| `admin_users` | Akun admin dashboard |
-
-| View | Keterangan |
-|---|---|
-| `v_kuota_manual_hari_ini` | Sisa kuota pemberian manual hari ini |
-| `v_pakan_terakhir` | Waktu & menit sejak pakan terakhir |
+- Jangan menyimpan password Wi-Fi, kredensial database, atau token produksi di repository publik.
+- Ganti token API sebelum digunakan pada jaringan publik.
+- Batasi akses dashboard karena implementasi saat ini belum menerapkan autentikasi login aktif.
+- Gunakan HTTPS dan konfigurasi server yang aman jika aplikasi dipublikasikan.
+- Nonaktifkan `DEBUG_MODE` pada lingkungan produksi.
+- Hapus atau batasi akses ke script bantuan setup setelah tidak diperlukan.
+- Lakukan pengujian perangkat keras setelah perubahan firmware, khususnya sensor, servo, LED, dan buzzer.
 
 ---
 
-## 9. FIRMWARE ESP32 — Catatan Integrasi
+## 15. Source Code
 
-Kontrak API ini dirancang untuk diimplementasikan di firmware ESP32. Poin yang harus dikonfigurasi:
+Source code AquaSense tersedia dalam repository ini dengan pembagian sebagai berikut:
 
-```cpp
-// config ESP32 firmware
-const char* WIFI_SSID     = "NamaWiFi";
-const char* WIFI_PASSWORD = "PasswordWiFi";
-const char* SERVER_URL    = "https://yourdomain.com/AquaSense";
-const char* API_TOKEN     = "AQUASENSE_ESP32_TOKEN_2024";
+| Folder/File | Keterangan |
+|---|---|
+| `api/` | Endpoint komunikasi antara aplikasi web dan ESP32 |
+| `assets/` | File CSS dan JavaScript |
+| `config/` | Konfigurasi aplikasi dan database |
+| `database/` | File SQL untuk database |
+| `firmware/` | Program ESP32 menggunakan Arduino C++ |
+| `includes/` | Komponen dan fungsi pendukung aplikasi |
+| `pages/` | Halaman dashboard |
+| `tools/` | Script bantuan pengembangan |
 
-// Interval polling (ms)
-const int SENSOR_INTERVAL    = 10000;   // 10 detik
-const int JADWAL_INTERVAL    = 60000;   // 60 detik
-const int PERINTAH_INTERVAL  =  5000;   // 5 detik
-const int HEARTBEAT_INTERVAL = 30000;   // 30 detik
+Firmware utama:
+
+```text
+firmware/AquaSense_ESP32_Revisi.ino
 ```
 
-Semua request harus menyertakan header:
-```
-X-API-Token: AQUASENSE_ESP32_TOKEN_2024
-Content-Type: application/json
-```
+Pastikan konfigurasi jaringan, alamat server, token API, dan pemetaan pin firmware sesuai dengan konfigurasi aplikasi web serta rangkaian perangkat yang digunakan.
 
-ESP32 adalah pengendali hardware utama. Server PHP hanya menyimpan data dan antrean perintah. ESP32 wajib memvalidasi ulang aturan pakan sebelum menggerakkan servo.
+---
 
-# AquaSense
-Project IOT Aquarium Feeder &amp; Monitoring 
+**AquaSense — Smart Aquarium Feeder & Monitoring System**
