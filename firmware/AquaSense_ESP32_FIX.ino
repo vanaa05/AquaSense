@@ -1,4 +1,3 @@
-
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <OneWire.h>
@@ -13,16 +12,16 @@
 // WIFI DAN SERVER AQUASENSE
 // =====================================
 
-const char* ssid = "niea";
-const char* password = "tebakberapa";
+const char *ssid = "niea";
+const char *password = "tebakberapa";
 
 // GANTI IP INI DENGAN IP LAPTOP YANG MENJALANKAN XAMPP
-const char* SERVER_URL = "http://10.123.120.23/AquaSense"; // GANTI dengan IPv4 laptop yang menjalankan XAMPP 
-//url disesuaikan dengan IPv4 di device, harus sama dan disesuaikan jg sama code yg ada di config
+const char *SERVER_URL = "http://10.123.120.23/AquaSense"; // GANTI dengan IPv4 laptop yang menjalankan XAMPP
+// url disesuaikan dengan IPv4 di device, harus sama dan disesuaikan jg sama code yg ada di config
 
-const char* API_TOKEN = "AQUASENSE_ESP32_TOKEN_2024";
+const char *API_TOKEN = "AQUASENSE_ESP32_TOKEN_2024";
 
-const char* serverNTP = "pool.ntp.org";
+const char *serverNTP = "pool.ntp.org";
 const long GMT_OFFSET = 7 * 3600;
 const int DAYLIGHT_OFFSET = 0;
 
@@ -55,23 +54,34 @@ const bool BUZZER_AKTIF_HIGH = true;
 const bool BUZZER_PASIF = false;
 const unsigned int FREKUENSI_BUZZER = 2000;
 
-void setLED(bool nyala) {
+void setLED(bool nyala)
+{
   digitalWrite(PIN_LED, nyala ? HIGH : LOW);
 }
 
-void setBuzzer(bool bunyi) {
-  if (BUZZER_PASIF) {
+void setBuzzer(bool bunyi)
+{
+  if (BUZZER_PASIF)
+  {
     // Buzzer pasif harus diberi sinyal frekuensi agar menghasilkan suara.
-    if (bunyi) {
+    if (bunyi)
+    {
       tone(PIN_BUZZER, FREKUENSI_BUZZER);
-    } else {
+    }
+    else
+    {
       noTone(PIN_BUZZER);
     }
-  } else {
+  }
+  else
+  {
     // Buzzer aktif menggunakan level HIGH/LOW.
-    if (BUZZER_AKTIF_HIGH) {
+    if (BUZZER_AKTIF_HIGH)
+    {
       digitalWrite(PIN_BUZZER, bunyi ? HIGH : LOW);
-    } else {
+    }
+    else
+    {
       digitalWrite(PIN_BUZZER, bunyi ? LOW : HIGH);
     }
   }
@@ -81,20 +91,25 @@ void setBuzzer(bool bunyi) {
 // [REVISI] WAKTU SAAT INI (NTP, WIB)
 // =====================================
 
-String waktuSekarang(bool denganTanggal) {
+String waktuSekarang(bool denganTanggal)
+{
 
   struct tm w;
 
   // timeout singkat agar program tidak tertahan lama
-  if (!getLocalTime(&w, 200)) {
+  if (!getLocalTime(&w, 200))
+  {
     return denganTanggal ? "waktu belum sinkron" : "--:--:--";
   }
 
   char buf[24];
 
-  if (denganTanggal) {
+  if (denganTanggal)
+  {
     strftime(buf, sizeof(buf), "%d/%m/%Y %H:%M:%S", &w);
-  } else {
+  }
+  else
+  {
     strftime(buf, sizeof(buf), "%H:%M:%S", &w);
   }
 
@@ -135,7 +150,7 @@ const float BATAS_PAKAN_HABIS = 10.0;
 const unsigned long DURASI_BUKA_SERVO = 1000;
 
 const unsigned long JEDA_MINIMUM =
-  240UL * 60UL * 1000UL;
+    240UL * 60UL * 1000UL;
 
 const int BATAS_PAKAN_MANUAL = 2;
 
@@ -145,7 +160,7 @@ const unsigned long INTERVAL_API = 10000;
 const unsigned long INTERVAL_JADWAL = 30000;
 
 const unsigned long COOLDOWN_NOTIFIKASI =
-  10UL * 60UL * 1000UL;
+    10UL * 60UL * 1000UL;
 
 // =====================================
 // VARIABEL SENSOR
@@ -176,7 +191,8 @@ bool pakanOtomatisAktif = true;
 
 bool jadwalSudahDiambil = false;
 
-struct JadwalPakan {
+struct JadwalPakan
+{
   int id;
   int jam;
   int menit;
@@ -213,7 +229,8 @@ bool serverTersambung = false;
 // FUNGSI MEMBANGUN URL
 // =====================================
 
-String buatURL(String endpoint) {
+String buatURL(String endpoint)
+{
   return String(SERVER_URL) + endpoint;
 }
 
@@ -222,13 +239,14 @@ String buatURL(String endpoint) {
 // =====================================
 
 bool httpRequest(
-  String endpoint,
-  String method,
-  String payload,
-  String &response
-) {
+    String endpoint,
+    String method,
+    String payload,
+    String &response)
+{
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     Serial.println("[API ERROR] WiFi terputus.");
     serverTersambung = false;
     return false;
@@ -247,13 +265,17 @@ bool httpRequest(
 
   int httpCode = -1;
 
-  if (method == "POST") {
+  if (method == "POST")
+  {
     httpCode = http.POST(payload);
-  } else {
+  }
+  else
+  {
     httpCode = http.GET();
   }
 
-  if (httpCode > 0) {
+  if (httpCode > 0)
+  {
 
     response = http.getString();
 
@@ -262,15 +284,17 @@ bool httpRequest(
     Serial.print(" : ");
     Serial.println(httpCode);
 
-    if (httpCode >= 200 && httpCode < 300) {
+    if (httpCode >= 200 && httpCode < 300)
+    {
       serverTersambung = true;
       http.end();
       return true;
     }
 
     Serial.println("[API ERROR] Respons server tidak berhasil.");
-
-  } else {
+  }
+  else
+  {
 
     Serial.print("[API ERROR] ");
     Serial.println(http.errorToString(httpCode));
@@ -287,16 +311,17 @@ bool httpRequest(
 // FUNGSI MEMBACA SENSOR SUHU
 // =====================================
 
-float bacaSuhu() {
+float bacaSuhu()
+{
 
   sensorSuhu.requestTemperatures();
 
   float suhu = sensorSuhu.getTempCByIndex(0);
 
   if (
-    suhu == DEVICE_DISCONNECTED_C ||
-    suhu == -127.0
-  ) {
+      suhu == DEVICE_DISCONNECTED_C ||
+      suhu == -127.0)
+  {
 
     Serial.println("[ERROR] DS18B20 tidak terdeteksi!");
 
@@ -314,13 +339,15 @@ float bacaSuhu() {
 // FUNGSI MEMBACA HC-SR04
 // =====================================
 
-float bacaJarak() {
+float bacaJarak()
+{
 
   float hasil[5];
 
   int jumlah = 0;
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 5; i++)
+  {
 
     digitalWrite(PIN_TRIG, LOW);
     delayMicroseconds(2);
@@ -332,11 +359,13 @@ float bacaJarak() {
 
     long durasi = pulseIn(PIN_ECHO, HIGH, 30000);
 
-    if (durasi > 0) {
+    if (durasi > 0)
+    {
 
       float jarak = durasi * 0.0343 / 2.0;
 
-      if (jarak >= 2 && jarak <= 400) {
+      if (jarak >= 2 && jarak <= 400)
+      {
 
         hasil[jumlah] = jarak;
         jumlah++;
@@ -346,7 +375,8 @@ float bacaJarak() {
     delay(20);
   }
 
-  if (jumlah == 0) {
+  if (jumlah == 0)
+  {
 
     jarakValid = false;
 
@@ -355,11 +385,14 @@ float bacaJarak() {
 
   // Urutkan data untuk mendapatkan median
 
-  for (int i = 0; i < jumlah - 1; i++) {
+  for (int i = 0; i < jumlah - 1; i++)
+  {
 
-    for (int j = i + 1; j < jumlah; j++) {
+    for (int j = i + 1; j < jumlah; j++)
+    {
 
-      if (hasil[i] > hasil[j]) {
+      if (hasil[i] > hasil[j])
+      {
 
         float temp = hasil[i];
 
@@ -379,7 +412,8 @@ float bacaJarak() {
 // FUNGSI MEMBACA SEMUA SENSOR
 // =====================================
 
-void bacaSensor() {
+void bacaSensor()
+{
 
   suhuAir = bacaSuhu();
 
@@ -394,10 +428,13 @@ void bacaSensor() {
 
   Serial.print("Suhu air: ");
 
-  if (suhuValid) {
+  if (suhuValid)
+  {
     Serial.print(suhuAir);
     Serial.println(" C");
-  } else {
+  }
+  else
+  {
     Serial.println("Sensor Error");
   }
 
@@ -406,10 +443,13 @@ void bacaSensor() {
 
   Serial.print("Jarak pakan: ");
 
-  if (jarakValid) {
+  if (jarakValid)
+  {
     Serial.print(jarakPakan);
     Serial.println(" cm");
-  } else {
+  }
+  else
+  {
     Serial.println("Tidak valid");
   }
 
@@ -426,15 +466,18 @@ void bacaSensor() {
 // LCD
 // =====================================
 
-void tampilkanLCD() {
+void tampilkanLCD()
+{
 
   lcd.setCursor(0, 0);
 
-  if (!suhuValid) {
+  if (!suhuValid)
+  {
 
     lcd.print("Suhu: Sensor Err");
-
-  } else {
+  }
+  else
+  {
 
     lcd.print("Suhu:");
     lcd.print(suhuAir, 1);
@@ -449,11 +492,13 @@ void tampilkanLCD() {
 
   lcd.print(" P:");
 
-  if (!jarakValid) {
+  if (!jarakValid)
+  {
 
     lcd.print("Error");
-
-  } else {
+  }
+  else
+  {
 
     lcd.print(jarakPakan, 1);
     lcd.print("cm");
@@ -466,21 +511,28 @@ void tampilkanLCD() {
 // KIRIM DATA SENSOR KE PHP
 // =====================================
 
-void kirimDataSensor() {
+void kirimDataSensor()
+{
 
   StaticJsonDocument<256> doc;
 
-  if (suhuValid) {
+  if (suhuValid)
+  {
     doc["suhu"] = suhuAir;
-  } else {
+  }
+  else
+  {
     doc["suhu"] = nullptr;
   }
 
   doc["turbidity_adc"] = nilaiTurbidity;
 
-  if (jarakValid) {
+  if (jarakValid)
+  {
     doc["jarak_pakan"] = jarakPakan;
-  } else {
+  }
+  else
+  {
     doc["jarak_pakan"] = nullptr;
   }
 
@@ -495,18 +547,18 @@ void kirimDataSensor() {
   String response;
 
   httpRequest(
-    "/api/esp32/sensor.php",
-    "POST",
-    payload,
-    response
-  );
+      "/api/esp32/sensor.php",
+      "POST",
+      payload,
+      response);
 }
 
 // =====================================
 // HEARTBEAT ESP32
 // =====================================
 
-void kirimHeartbeat() {
+void kirimHeartbeat()
+{
 
   StaticJsonDocument<128> doc;
 
@@ -520,51 +572,53 @@ void kirimHeartbeat() {
   String response;
 
   httpRequest(
-    "/api/esp32/heartbeat.php",
-    "POST",
-    payload,
-    response
-  );
+      "/api/esp32/heartbeat.php",
+      "POST",
+      payload,
+      response);
 }
 
 // =====================================
 // AMBIL PENGATURAN DASHBOARD
 // =====================================
 
-void ambilPengaturan() {
+void ambilPengaturan()
+{
 
   String response;
 
   if (!httpRequest(
-    "/api/esp32/pengaturan.php",
-    "GET",
-    "",
-    response
-  )) {
+          "/api/esp32/pengaturan.php",
+          "GET",
+          "",
+          response))
+  {
     return;
   }
 
   StaticJsonDocument<512> doc;
 
   DeserializationError error =
-    deserializeJson(doc, response);
+      deserializeJson(doc, response);
 
-  if (error) {
+  if (error)
+  {
 
     Serial.println("[JSON ERROR] Pengaturan.");
 
     return;
   }
 
-  if (doc["success"] != true) {
+  if (doc["success"] != true)
+  {
     return;
   }
 
   pakanOtomatisAktif =
-    doc["pakan_otomatis"] | 1;
+      doc["pakan_otomatis"] | 1;
 
   buzzerPakanAktif =
-    doc["buzzer_peringatan"] | 1;
+      doc["buzzer_peringatan"] | 1;
 
   Serial.println("[INFO] Pengaturan berhasil diperbarui.");
 
@@ -579,64 +633,68 @@ void ambilPengaturan() {
 // AMBIL JADWAL DARI DASHBOARD
 // =====================================
 
-void ambilJadwal() {
+void ambilJadwal()
+{
 
   String response;
 
   if (!httpRequest(
-    "/api/esp32/jadwal.php",
-    "GET",
-    "",
-    response
-  )) {
+          "/api/esp32/jadwal.php",
+          "GET",
+          "",
+          response))
+  {
     return;
   }
 
   StaticJsonDocument<2048> doc;
 
   DeserializationError error =
-    deserializeJson(doc, response);
+      deserializeJson(doc, response);
 
-  if (error) {
+  if (error)
+  {
 
     Serial.println("[JSON ERROR] Jadwal.");
 
     return;
   }
 
-  if (doc["success"] != true) {
+  if (doc["success"] != true)
+  {
     return;
   }
 
   pakanOtomatisAktif =
-    doc["pakan_otomatis"] | 1;
+      doc["pakan_otomatis"] | 1;
 
   JsonArray jadwal = doc["jadwal"].as<JsonArray>();
 
   jumlahJadwal = 0;
 
-  for (JsonObject item : jadwal) {
+  for (JsonObject item : jadwal)
+  {
 
-    if (jumlahJadwal >= 10) {
+    if (jumlahJadwal >= 10)
+    {
       break;
     }
 
     String jam = item["jam"] | "00:00";
 
     daftarJadwal[jumlahJadwal].id =
-      item["id"] | 0;
+        item["id"] | 0;
 
     daftarJadwal[jumlahJadwal].jam =
-      jam.substring(0, 2).toInt();
+        jam.substring(0, 2).toInt();
 
     daftarJadwal[jumlahJadwal].menit =
-      jam.substring(3, 5).toInt();
+        jam.substring(3, 5).toInt();
 
     daftarJadwal[jumlahJadwal].sudut =
-      item["sudut_servo"] | 90;
+        item["sudut_servo"] | 90;
 
     jumlahJadwal++;
-
   }
 
   jadwalSudahDiambil = true;
@@ -650,28 +708,31 @@ void ambilJadwal() {
 // =====================================
 
 void laporStatusPakan(
-  String jenis,
-  int id,
-  int sudut,
-  String status,
-  String alasan = ""
-) {
+    String jenis,
+    int id,
+    int sudut,
+    String status,
+    String alasan = "")
+{
 
   StaticJsonDocument<256> doc;
 
-  if (jenis == "dashboard") {
+  if (jenis == "dashboard")
+  {
 
     doc["perintah_id"] = id;
 
     doc["status"] =
-      status == "berhasil" ? "executed" : "rejected";
-
-  } else if (jenis == "jadwal") {
+        status == "berhasil" ? "executed" : "rejected";
+  }
+  else if (jenis == "jadwal")
+  {
 
     doc["jadwal_id"] = id;
     doc["status"] = status;
-
-  } else {
+  }
+  else
+  {
 
     doc["sumber"] = "push_button";
     doc["status"] = status;
@@ -687,55 +748,54 @@ void laporStatusPakan(
   String response;
 
   httpRequest(
-    "/api/esp32/status_pakan.php",
-    "POST",
-    payload,
-    response
-  );
+      "/api/esp32/status_pakan.php",
+      "POST",
+      payload,
+      response);
 }
 
 // =====================================
 // MEMERIKSA JEDA MINIMUM
 // =====================================
 
-bool bolehMemberiPakan() {
+bool bolehMemberiPakan()
+{
 
-  if (waktuPemberianTerakhir == 0) {
+  if (waktuPemberianTerakhir == 0)
+  {
     return true;
   }
 
   if (
-    millis() - waktuPemberianTerakhir >=
-    JEDA_MINIMUM
-  ) {
+      millis() - waktuPemberianTerakhir >=
+      JEDA_MINIMUM)
+  {
     return true;
   }
 
   Serial.println(
-    "[PERINGATAN] Jeda minimum 240 menit belum terpenuhi."
-  );
+      "[PERINGATAN] Jeda minimum 240 menit belum terpenuhi.");
 
   return false;
 }
-
 
 // =====================================
 // MENJALANKAN SERVO
 // =====================================
 
 bool beriPakan(
-  int sudut,
-  String sumber,
-  int id = 0
-) {
+    int sudut,
+    String sumber,
+    int id = 0)
+{
 
   // Validasi sudut servo
   if (
-    sudut != 45 &&
-    sudut != 90 &&
-    sudut != 135 &&
-    sudut != 180
-  ) {
+      sudut != 45 &&
+      sudut != 90 &&
+      sudut != 135 &&
+      sudut != 180)
+  {
     Serial.println("[ERROR] Sudut servo tidak valid.");
     return false;
   }
@@ -743,17 +803,17 @@ bool beriPakan(
   // Pengecekan jeda 4 jam hanya untuk
   // push button dan Feed Now dashboard.
   // Pakan otomatis dari jadwal tidak dibatasi jeda 4 jam.
-  if (sumber != "jadwal" && !bolehMemberiPakan()) {
+  if (sumber != "jadwal" && !bolehMemberiPakan())
+  {
 
     Serial.println("[PERINGATAN] Pemberian pakan ditolak karena jeda 4 jam belum terpenuhi.");
 
     laporStatusPakan(
-      sumber,
-      id,
-      sudut,
-      "ditolak",
-      "Jeda minimum 240 menit belum terpenuhi."
-    );
+        sumber,
+        id,
+        sudut,
+        "ditolak",
+        "Jeda minimum 240 menit belum terpenuhi.");
 
     return false;
   }
@@ -794,8 +854,8 @@ bool beriPakan(
   String waktuLengkap = waktuSekarang(true);
 
   teksPakanTerakhir =
-    waktuLengkap + " (" + sumber + ", " +
-    String(sudut) + " derajat)";
+      waktuLengkap + " (" + sumber + ", " +
+      String(sudut) + " derajat)";
 
   Serial.println("[INFO] Pemberian pakan selesai.");
 
@@ -818,11 +878,10 @@ bool beriPakan(
 
   // Melaporkan status pemberian pakan ke server
   laporStatusPakan(
-    sumber,
-    id,
-    sudut,
-    "berhasil"
-  );
+      sumber,
+      id,
+      sudut,
+      "berhasil");
 
   delay(3000);
 
@@ -835,13 +894,14 @@ bool beriPakan(
 // PAKAN MANUAL PUSH BUTTON
 // =====================================
 
-void pakanManual() {
+void pakanManual()
+{
 
-  if (jumlahPakanManual >= BATAS_PAKAN_MANUAL) {
+  if (jumlahPakanManual >= BATAS_PAKAN_MANUAL)
+  {
 
     Serial.println(
-      "[PERINGATAN] Kuota manual 2 kali sehari habis."
-    );
+        "[PERINGATAN] Kuota manual 2 kali sehari habis.");
 
     lcd.clear();
 
@@ -858,7 +918,8 @@ void pakanManual() {
     return;
   }
 
-  if (!bolehMemberiPakan()) {
+  if (!bolehMemberiPakan())
+  {
 
     lcd.clear();
 
@@ -875,7 +936,8 @@ void pakanManual() {
     return;
   }
 
-  if (beriPakan(90, "push_button")) {
+  if (beriPakan(90, "push_button"))
+  {
 
     jumlahPakanManual++;
 
@@ -888,36 +950,41 @@ void pakanManual() {
 // PAKAN OTOMATIS DARI JADWAL
 // =====================================
 
-void pakanOtomatis() {
+void pakanOtomatis()
+{
 
-  if (!pakanOtomatisAktif) {
+  if (!pakanOtomatisAktif)
+  {
     return;
   }
 
-  if (!jadwalSudahDiambil) {
+  if (!jadwalSudahDiambil)
+  {
     return;
   }
 
   struct tm waktu;
 
-  if (!getLocalTime(&waktu)) {
+  if (!getLocalTime(&waktu))
+  {
     return;
   }
 
   int menitSekarang =
-    waktu.tm_hour * 60 + waktu.tm_min;
+      waktu.tm_hour * 60 + waktu.tm_min;
 
-  for (int i = 0; i < jumlahJadwal; i++) {
+  for (int i = 0; i < jumlahJadwal; i++)
+  {
 
     if (
-      waktu.tm_hour == daftarJadwal[i].jam &&
-      waktu.tm_min == daftarJadwal[i].menit
-    ) {
+        waktu.tm_hour == daftarJadwal[i].jam &&
+        waktu.tm_min == daftarJadwal[i].menit)
+    {
 
       if (
-        daftarJadwal[i].hariEksekusi == waktu.tm_yday &&
-        daftarJadwal[i].menitEksekusi == menitSekarang
-      ) {
+          daftarJadwal[i].hariEksekusi == waktu.tm_yday &&
+          daftarJadwal[i].menitEksekusi == menitSekarang)
+      {
         continue;
       }
 
@@ -927,10 +994,9 @@ void pakanOtomatis() {
       Serial.println("[JADWAL] Waktu pemberian pakan.");
 
       beriPakan(
-        daftarJadwal[i].sudut,
-        "jadwal",
-        daftarJadwal[i].id
-      );
+          daftarJadwal[i].sudut,
+          "jadwal",
+          daftarJadwal[i].id);
     }
   }
 }
@@ -939,61 +1005,68 @@ void pakanOtomatis() {
 // MENGAMBIL PERINTAH FEED NOW
 // =====================================
 
-void ambilPerintah() {
+void ambilPerintah()
+{
 
   String response;
 
   if (!httpRequest(
-    "/api/esp32/perintah.php",
-    "GET",
-    "",
-    response
-  )) {
+          "/api/esp32/perintah.php",
+          "GET",
+          "",
+          response))
+  {
     return;
   }
 
   StaticJsonDocument<512> doc;
 
   DeserializationError error =
-    deserializeJson(doc, response);
+      deserializeJson(doc, response);
 
-  if (error) {
+  if (error)
+  {
 
     Serial.println("[JSON ERROR] Feed Now.");
 
     return;
   }
 
-  if (doc["success"] != true) {
+  if (doc["success"] != true)
+  {
     return;
   }
 
   bool adaPerintah =
-    doc["ada_perintah"] | false;
+      doc["ada_perintah"] | false;
 
-  if (!adaPerintah) {
+  if (!adaPerintah)
+  {
     return;
   }
 
   JsonObject perintah =
-    doc["perintah"].as<JsonObject>();
+      doc["perintah"].as<JsonObject>();
 
   int id = perintah["id"] | 0;
 
   int sudut =
-    perintah["sudut_servo"] | 90;
+      perintah["sudut_servo"] | 90;
 
   Serial.println("[SERVER] Perintah Feed Now diterima.");
 
-  if (id <= 0) {
+  if (id <= 0)
+  {
     return;
   }
 
-  if (beriPakan(sudut, "dashboard", id)) {
+  if (beriPakan(sudut, "dashboard", id))
+  {
 
     Serial.println("[SERVER] Feed Now berhasil dijalankan.");
-
-  } else {
+  }
+  else
+  {
 
     Serial.println("[SERVER] Feed Now ditolak.");
   }
@@ -1003,23 +1076,25 @@ void ambilPerintah() {
 // RESET PAKAN HARIAN
 // =====================================
 
-void periksaHari() {
+void periksaHari()
+{
 
   struct tm waktu;
 
-  if (!getLocalTime(&waktu)) {
+  if (!getLocalTime(&waktu))
+  {
     return;
   }
 
-  if (hariTerakhir != waktu.tm_yday) {
+  if (hariTerakhir != waktu.tm_yday)
+  {
 
     hariTerakhir = waktu.tm_yday;
 
     jumlahPakanManual = 0;
 
     Serial.println(
-      "[INFO] Kuota pakan manual direset."
-    );
+        "[INFO] Kuota pakan manual direset.");
   }
 }
 
@@ -1027,7 +1102,8 @@ void periksaHari() {
 // SISTEM PERINGATAN
 // =====================================
 
-void periksaKondisi() {
+void periksaKondisi()
+{
 
   bool bahayaSuhu = false;
   bool bahayaTurbidity = false;
@@ -1040,20 +1116,22 @@ void periksaKondisi() {
   // SUHU
   // ---------------------------------
 
-  if (!suhuValid) {
+  if (!suhuValid)
+  {
 
     Serial.println("[ERROR] Sensor suhu tidak terdeteksi!");
-
-  } else if (
-    suhuAir < BATAS_SUHU_MIN ||
-    suhuAir > BATAS_SUHU_MAX
-  ) {
+  }
+  else if (
+      suhuAir < BATAS_SUHU_MIN ||
+      suhuAir > BATAS_SUHU_MAX)
+  {
 
     Serial.println("[BAHAYA] Suhu air di luar batas!");
 
     bahayaSuhu = true;
-
-  } else {
+  }
+  else
+  {
 
     Serial.println("[NORMAL] Suhu air normal.");
   }
@@ -1065,20 +1143,22 @@ void periksaKondisi() {
   Serial.print("Kekeruhan air: ");
   Serial.println(nilaiTurbidity);
 
-  if (nilaiTurbidity <= BATAS_KERUH) {
+  if (nilaiTurbidity <= BATAS_KERUH)
+  {
 
     Serial.println("[BAHAYA] Air keruh!");
 
     bahayaTurbidity = true;
-
-  } else if (
-    nilaiTurbidity >= BATAS_AGAK_KERUH &&
-    nilaiTurbidity <= 3150
-  ) {
+  }
+  else if (
+      nilaiTurbidity >= BATAS_AGAK_KERUH &&
+      nilaiTurbidity <= 3150)
+  {
 
     Serial.println("[PERINGATAN] Air agak keruh!");
-
-  } else {
+  }
+  else
+  {
 
     Serial.println("[NORMAL] Kekeruhan air normal.");
   }
@@ -1089,22 +1169,26 @@ void periksaKondisi() {
 
   Serial.print("Jarak ke pakan: ");
 
-  if (!jarakValid) {
+  if (!jarakValid)
+  {
 
     Serial.println("Tidak valid");
-
-  } else {
+  }
+  else
+  {
 
     Serial.print(jarakPakan);
     Serial.println(" cm");
 
-    if (jarakPakan >= BATAS_PAKAN_HABIS) {
+    if (jarakPakan >= BATAS_PAKAN_HABIS)
+    {
 
       Serial.println("[BAHAYA] PAKAN MENIPIS!");
 
       bahayaPakan = true;
-
-    } else {
+    }
+    else
+    {
 
       Serial.println("[NORMAL] Pakan masih tersedia.");
     }
@@ -1115,14 +1199,14 @@ void periksaKondisi() {
   // ---------------------------------
 
   bool bahaya =
-    bahayaSuhu ||
-    bahayaTurbidity ||
-    bahayaPakan;
+      bahayaSuhu ||
+      bahayaTurbidity ||
+      bahayaPakan;
 
   bool buzzerAktif =
-    bahayaSuhu ||
-    bahayaTurbidity ||
-    (bahayaPakan && buzzerPakanAktif);
+      bahayaSuhu ||
+      bahayaTurbidity ||
+      (bahayaPakan && buzzerPakanAktif);
 
   // [REVISI] LED & buzzer lewat fungsi agar polaritas mudah diatur
   setLED(bahaya);
@@ -1134,7 +1218,8 @@ void periksaKondisi() {
   Serial.print(" | Buzzer: ");
   Serial.print(buzzerAktif ? "ON" : "OFF");
 
-  if (bahayaPakan && !buzzerPakanAktif) {
+  if (bahayaPakan && !buzzerPakanAktif)
+  {
     Serial.print(" (buzzer pakan dimatikan dari dashboard)");
   }
 
@@ -1146,24 +1231,25 @@ void periksaKondisi() {
 
   unsigned long sekarang = millis();
 
-  if (bahaya) {
+  if (bahaya)
+  {
 
     if (
-      !statusNotifikasiSebelumnya ||
-      sekarang - waktuNotifikasiTerakhir >=
-      COOLDOWN_NOTIFIKASI
-    ) {
+        !statusNotifikasiSebelumnya ||
+        sekarang - waktuNotifikasiTerakhir >=
+            COOLDOWN_NOTIFIKASI)
+    {
 
       waktuNotifikasiTerakhir = sekarang;
 
       Serial.println(
-        "[NOTIFIKASI] Kondisi peringatan aktif."
-      );
+          "[NOTIFIKASI] Kondisi peringatan aktif.");
     }
 
     statusNotifikasiSebelumnya = true;
-
-  } else {
+  }
+  else
+  {
 
     statusNotifikasiSebelumnya = false;
 
@@ -1177,9 +1263,11 @@ void periksaKondisi() {
 // RECONNECT WIFI
 // =====================================
 
-void periksaWiFi() {
+void periksaWiFi()
+{
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
 
     Serial.println("[WIFI] Mencoba menyambungkan ulang...");
 
@@ -1189,16 +1277,21 @@ void periksaWiFi() {
     // Jika WiFi tersambung kembali, sinkronkan ulang waktu WIB.
     unsigned long mulaiTunggu = millis();
     while (WiFi.status() != WL_CONNECTED &&
-           millis() - mulaiTunggu < 10000) {
+           millis() - mulaiTunggu < 10000)
+    {
       delay(250);
     }
 
-    if (WiFi.status() == WL_CONNECTED) {
+    if (WiFi.status() == WL_CONNECTED)
+    {
       configTime(GMT_OFFSET, DAYLIGHT_OFFSET, serverNTP);
       struct tm waktu;
-      if (getLocalTime(&waktu, 10000)) {
+      if (getLocalTime(&waktu, 10000))
+      {
         Serial.println("[NTP] Waktu berhasil disinkronkan ulang.");
-      } else {
+      }
+      else
+      {
         Serial.println("[NTP ERROR] Sinkronisasi ulang gagal.");
       }
     }
@@ -1209,7 +1302,8 @@ void periksaWiFi() {
 // SETUP
 // =====================================
 
-void setup() {
+void setup()
+{
 
   Serial.begin(115200);
 
@@ -1247,7 +1341,8 @@ void setup() {
 
   // Inisialisasi penanda eksekusi jadwal.
   // Nilai -1 mencegah jadwal pukul 00:00 dianggap sudah dijalankan.
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 10; i++)
+  {
     daftarJadwal[i].hariEksekusi = -1;
     daftarJadwal[i].menitEksekusi = -1;
   }
@@ -1293,16 +1388,17 @@ void setup() {
   unsigned long batasWiFi = millis();
 
   while (
-    WiFi.status() != WL_CONNECTED &&
-    millis() - batasWiFi < 20000
-  ) {
+      WiFi.status() != WL_CONNECTED &&
+      millis() - batasWiFi < 20000)
+  {
 
     delay(500);
 
     Serial.print(".");
   }
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED)
+  {
 
     Serial.println();
     Serial.println("[WIFI] Terhubung.");
@@ -1318,18 +1414,19 @@ void setup() {
     // NTP
 
     configTime(
-      GMT_OFFSET,
-      DAYLIGHT_OFFSET,
-      serverNTP
-    );
+        GMT_OFFSET,
+        DAYLIGHT_OFFSET,
+        serverNTP);
 
     struct tm waktu;
 
-    if (getLocalTime(&waktu, 10000)) {
+    if (getLocalTime(&waktu, 10000))
+    {
 
       Serial.println("[NTP] Waktu berhasil disinkronkan.");
-
-    } else {
+    }
+    else
+    {
 
       Serial.println("[NTP ERROR] Sinkronisasi gagal.");
     }
@@ -1341,8 +1438,9 @@ void setup() {
     ambilJadwal();
 
     kirimHeartbeat();
-
-  } else {
+  }
+  else
+  {
 
     Serial.println();
     Serial.println("[WIFI ERROR] WiFi belum terhubung.");
@@ -1368,7 +1466,8 @@ void setup() {
 // LOOP UTAMA
 // =====================================
 
-void loop() {
+void loop()
+{
 
   unsigned long sekarang = millis();
 
@@ -1376,7 +1475,8 @@ void loop() {
   // WIFI
   // ---------------------------------
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
 
     periksaWiFi();
   }
@@ -1391,11 +1491,13 @@ void loop() {
   // PUSH BUTTON
   // ---------------------------------
 
-  if (digitalRead(PIN_BUTTON) == LOW) {
+  if (digitalRead(PIN_BUTTON) == LOW)
+  {
 
     pakanManual();
 
-    while (digitalRead(PIN_BUTTON) == LOW) {
+    while (digitalRead(PIN_BUTTON) == LOW)
+    {
       delay(20);
     }
   }
@@ -1404,7 +1506,8 @@ void loop() {
   // [REVISI] CEK JADWAL PAKAN OTOMATIS
   // ---------------------------------
 
-  if (sekarang - waktuCekJadwal >= 1000) {
+  if (sekarang - waktuCekJadwal >= 1000)
+  {
 
     waktuCekJadwal = sekarang;
 
@@ -1416,9 +1519,9 @@ void loop() {
   // ---------------------------------
 
   if (
-    sekarang - waktuBacaSensor >=
-    INTERVAL_SENSOR
-  ) {
+      sekarang - waktuBacaSensor >=
+      INTERVAL_SENSOR)
+  {
 
     waktuBacaSensor = sekarang;
 
@@ -1432,10 +1535,10 @@ void loop() {
   // ---------------------------------
 
   if (
-    WiFi.status() == WL_CONNECTED &&
-    sekarang - waktuKirimSensor >=
-    INTERVAL_KIRIM
-  ) {
+      WiFi.status() == WL_CONNECTED &&
+      sekarang - waktuKirimSensor >=
+          INTERVAL_KIRIM)
+  {
 
     waktuKirimSensor = sekarang;
 
@@ -1447,10 +1550,10 @@ void loop() {
   // ---------------------------------
 
   if (
-    WiFi.status() == WL_CONNECTED &&
-    sekarang - waktuAmbilAPI >=
-    INTERVAL_API
-  ) {
+      WiFi.status() == WL_CONNECTED &&
+      sekarang - waktuAmbilAPI >=
+          INTERVAL_API)
+  {
 
     waktuAmbilAPI = sekarang;
 
@@ -1464,10 +1567,10 @@ void loop() {
   // ---------------------------------
 
   if (
-    WiFi.status() == WL_CONNECTED &&
-    sekarang - waktuAmbilJadwal >=
-    INTERVAL_JADWAL
-  ) {
+      WiFi.status() == WL_CONNECTED &&
+      sekarang - waktuAmbilJadwal >=
+          INTERVAL_JADWAL)
+  {
 
     waktuAmbilJadwal = sekarang;
 
@@ -1479,9 +1582,9 @@ void loop() {
   // ---------------------------------
 
   if (
-    WiFi.status() == WL_CONNECTED &&
-    sekarang - waktuHeartbeat >= 30000
-  ) {
+      WiFi.status() == WL_CONNECTED &&
+      sekarang - waktuHeartbeat >= 30000)
+  {
 
     waktuHeartbeat = sekarang;
 
