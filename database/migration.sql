@@ -7,24 +7,10 @@
 USE `iot`;
 
 -- ============================================================
--- 1. Pastikan tabel admin_users ada dan memiliki akun default.
---    Password default: aquasense123
---    Ganti setelah deploy ke produksi!
+-- 1. Hapus tabel admin_users lama.
+--    Dashboard AquaSense tidak menggunakan login admin.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS `admin_users` (
-    `id`            INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    `username`      VARCHAR(50)     NOT NULL,
-    `password_hash` VARCHAR(255)    NOT NULL,
-    `nama`          VARCHAR(100)    NOT NULL DEFAULT 'Administrator',
-    `created_at`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Tambah akun admin default jika belum ada
--- Hash dibuat dengan: password_hash('aquasense123', PASSWORD_BCRYPT)
-INSERT IGNORE INTO `admin_users` (`username`, `password_hash`, `nama`) VALUES
-('admin', '$2y$10$JRgLxmbkts8mvvMV3lNENO9titOfHGez3Dw9zCblQ6qrO4dhgY6eS', 'Administrator AquaSense');
+DROP TABLE IF EXISTS `admin_users`;
 
 -- ============================================================
 -- 2. Pastikan pengaturan esp32_last_seen tersedia.
@@ -69,18 +55,11 @@ FROM `riwayat_pakan`
 WHERE `status` = 'berhasil';
 
 -- ============================================================
--- 5. Ganti password admin (opsional — isi hash baru di sini)
---    Gunakan tools/generate_hash.php untuk membuat hash:
---    php tools/generate_hash.php <password_baru>
--- ============================================================
--- UPDATE admin_users SET password_hash = '<hash_baru>' WHERE username = 'admin';
-
--- ============================================================
 -- Catatan verifikasi setelah migrasi:
--- 1. Buka http://localhost/AquaSense/login.php
--- 2. Login dengan admin / aquasense123
--- 3. Periksa bahwa halaman Beranda, Sensor, Jadwal memerlukan login
--- 4. Periksa halaman Beranda — status ESP32 harus "Offline" (belum ada heartbeat)
+-- 1. Buka http://localhost/AquaSense
+-- 2. Pastikan halaman Beranda dapat diakses.
+-- 3. Periksa halaman Sensor dan Jadwal.
+-- 4. Periksa status ESP32 pada dashboard.
 -- 5. Kirim POST ke /api/esp32/heartbeat.php dengan header X-API-Token
---    untuk menguji status online ESP32
+--    untuk menguji status online ESP32.
 -- ============================================================

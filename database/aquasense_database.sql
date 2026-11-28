@@ -106,20 +106,6 @@ CREATE TABLE IF NOT EXISTS `riwayat_peringatan` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
--- Tabel: admin_users
--- Autentikasi dashboard (migrasi tambahan)
--- ============================================================
-CREATE TABLE IF NOT EXISTS `admin_users` (
-    `id`            INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    `username`      VARCHAR(50)     NOT NULL,
-    `password_hash` VARCHAR(255)    NOT NULL,
-    `nama`          VARCHAR(100)    NOT NULL DEFAULT 'Administrator',
-    `created_at`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ============================================================
 -- View: v_kuota_manual_hari_ini
 -- Menghitung sisa kuota pemberian pakan manual hari ini.
 -- Laporan: pemberian pakan manual dari dashboard DAN push_button
@@ -177,13 +163,3 @@ INSERT IGNORE INTO `jadwal_pakan` (`nama`, `jam`, `sudut_servo`, `aktif`) VALUES
 ('Siang',   '12:00:00', 90, 1),
 ('Sore',    '17:00:00', 90, 1),
 ('Malam',   '21:00:00', 90, 1);
-
--- ============================================================
--- Data awal: admin default
--- Password: aquasense123 (ganti setelah deploy!)
--- ============================================================
--- password default: "aquasense123"
--- Hash ini dibuat dengan: password_hash('aquasense123', PASSWORD_BCRYPT)
--- Ganti setelah deploy ke produksi!
-INSERT IGNORE INTO `admin_users` (`username`, `password_hash`, `nama`) VALUES
-('admin', '$2y$10$JRgLxmbkts8mvvMV3lNENO9titOfHGez3Dw9zCblQ6qrO4dhgY6eS', 'Administrator AquaSense');

@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../includes/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-requireLogin();
+;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['success' => false, 'message' => 'Method tidak diizinkan.'], 405);

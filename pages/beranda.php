@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
-requireLogin();
+;
 
 $pakanOtomatis  = getPengaturan('pakan_otomatis');
 $buzzer         = getPengaturan('buzzer_peringatan');

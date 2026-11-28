@@ -21,42 +21,6 @@ function startSecureSession(): void {
     }
 }
 
-function isLoggedIn(): bool {
-    // Laporan tidak merancang autentikasi login.
-    // Akses dashboard dilindungi oleh jaringan lokal (Wi-Fi), bukan oleh session.
-    return true;
-}
-
-function requireLogin(): void {
-    // Tidak ada pembatasan akses — sesuai rancangan laporan.
-}
-
-function loginAdmin(string $username, string $password): bool {
-    $pdo = getDB();
-    $stmt = $pdo->prepare('SELECT id, username, password_hash, nama FROM admin_users WHERE username = ? LIMIT 1');
-    $stmt->execute([$username]);
-    $user = $stmt->fetch();
-    if ($user && password_verify($password, $user['password_hash'])) {
-        startSecureSession();
-        session_regenerate_id(true);
-        $_SESSION['admin_id']   = $user['id'];
-        $_SESSION['admin_user'] = $user['username'];
-        $_SESSION['admin_nama'] = $user['nama'];
-        return true;
-    }
-    return false;
-}
-
-function logoutAdmin(): void {
-    startSecureSession();
-    $_SESSION = [];
-    session_destroy();
-}
-
-function getAdminNama(): string {
-    return $_SESSION['admin_nama'] ?? 'Admin';
-}
-
 /**
  * Validasi token ESP32 dari header HTTP.
  * Gunakan di setiap endpoint API ESP32.
